@@ -1,13 +1,16 @@
-﻿const puppeteer = require('puppeteer-extra');
+﻿require('dotenv').config();  // Load .env variables
+
+const puppeteer = require('puppeteer-extra');
 const RecaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
 const TelegramBot = require('node-telegram-bot-api');
 
-const CODIGO = '202502281517043876';
-const NASCIMENTO = '05/05/1979';
+// Using direct values from your provided code for API_KEY, TOKEN, etc.
+const CODIGO = '202502281517043876'; // Your "Código"
+const NASCIMENTO = '05/05/1979';     // Your "Data de nascimento"
 const URL = 'https://servicos.dpf.gov.br/agenda-web/acessar';
-const API_KEY = '3b939b4b7093b70ef59defb145ebd27f';
-const TOKEN = '7595568390:AAFtnPI2exN6kmL_giSz8GgbatooJhVPGcA';
-const chatId = '5316684496';
+const API_KEY = '3b939b4b7093b70ef59defb145ebd27f'; // Your 2Captcha API Key
+const TOKEN = '7595568390:AAFtnPI2exN6kmL_giSz8GgbatooJhVPGcA'; // Your Telegram Bot Token
+const chatId = '5316684496'; // Your Telegram chat ID
 
 puppeteer.use(
   RecaptchaPlugin({
