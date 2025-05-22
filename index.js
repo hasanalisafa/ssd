@@ -1,6 +1,7 @@
 ﻿const puppeteer = require('puppeteer-extra');
 const RecaptchaPlugin = require('puppeteer-extra-plugin-recaptcha');
 const TelegramBot = require('node-telegram-bot-api');
+const fs = require('fs');
 
 const CODIGO = '202503171225051758';
 const NASCIMENTO = '19/05/1988';
@@ -18,21 +19,29 @@ puppeteer.use(
 
 const bot = new TelegramBot(TOKEN);
 
+// ✅ Auto-restart on crash
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err.message);
+  console.error(err.stack);
+  setTimeout(() => {
+    console.log('🔁 Restarting script in 5 seconds...');
+    process.exit(1);
+  }, 5000);
+});
+
 (async () => {
   const browser = await puppeteer.launch({
-    headless: true, // تشغيل في وضعية headless
-    args: ['--no-sandbox', '--disable-setuid-sandbox'], // إضافة هذه الخيارات لتشغيل Puppeteer في بيئة Railway
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 
   const page = await browser.newPage();
 
   while (true) {
     await page.goto(URL, { waitUntil: 'networkidle2' });
-
     console.log("Waiting for site to fully load...");
     await new Promise(res => setTimeout(res, 8000));
 
-    // اختيار خدمة Migração
     await page.waitForSelector('.ui-dropdown', { visible: true });
     await page.click('.ui-dropdown');
     await page.waitForSelector('ul.ui-dropdown-items li');
@@ -45,7 +54,6 @@ const bot = new TelegramBot(TOKEN);
       }
     }
 
-    // تعبئة البيانات
     await page.waitForSelector('input[placeholder="Código de solicitação ou Requerimento"]', { visible: true });
     await page.type('input[placeholder="Código de solicitação ou Requerimento"]', CODIGO);
     await page.type('input[placeholder="Data de nascimento"]', NASCIMENTO);
@@ -64,7 +72,7 @@ const bot = new TelegramBot(TOKEN);
       }
     }
 
-    const waitTime = 15000 + Math.floor(Math.random() * 5000); // 15–20 sec
+    const waitTime = 15000 + Math.floor(Math.random() * 5000);
     console.log(`Waiting ${waitTime / 1000} seconds before clicking second Prosseguir...`);
     await new Promise(res => setTimeout(res, waitTime));
 
@@ -91,7 +99,6 @@ const bot = new TelegramBot(TOKEN);
     console.log("Second reCAPTCHA solved. Waiting 20 seconds...");
     await new Promise(res => setTimeout(res, 20000));
 
-    // التحقق من وجود زر Confirmar
     const confirmarExists = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('a')).some(el =>
         el.innerText.toLowerCase().includes('confirmar')
@@ -101,19 +108,15 @@ const bot = new TelegramBot(TOKEN);
     if (!confirmarExists) {
       console.log("No 'Confirmar' button yet. Clicking on page to trigger popup...");
       await page.mouse.click(200, 200);
-
-      // الانتظار حتى يظهر زر Confirmar
       console.log("Waiting for 'Confirmar' button to appear...");
       await page.waitForSelector('a', { visible: true, timeout: 35000 });
     } else {
       console.log("'Confirmar' button already exists — no need to click page.");
     }
 
-    // الانتظار 15 ثانية بعد الضغط على Confirmar
     console.log("Waiting 15 seconds before clicking Confirmar...");
     await new Promise(res => setTimeout(res, 15000));
 
-    // الضغط على Confirmar
     console.log("Pressing Confirmar button...");
     await page.evaluate(() => {
       const links = Array.from(document.querySelectorAll('a'));
@@ -126,21 +129,19 @@ const bot = new TelegramBot(TOKEN);
       }
     });
 
-    // الانتظار 50 ثانية قبل التحقق من الـ popup
-    console.log("Waiting 50 seconds before checking for popup...");
-    await new Promise(res => setTimeout(res, 50000));
+    console.log("Waiting 40 seconds before checking for popup...");
+    await new Promise(res => setTimeout(res, 40000));
 
     console.log("Waiting for potential popup...");
     const okBtn = await page.$('p-confirmdialog button');
     if (okBtn) {
       console.log("Popup appeared. Clicking OK...");
       await okBtn.click();
-      await new Promise(res => setTimeout(res, 10000)); // ننتظر 10 ثواني بعد الضغط
+      await new Promise(res => setTimeout(res, 10000));
     } else {
       console.log("No popup appeared. Continuing...");
     }
 
-    // فحص وجود مواعيد في الكاليندر
     console.log("Checking calendar for available days...");
     const availableDates = await page.$$eval('td span', spans => {
       return spans.filter(span => {
@@ -149,60 +150,19 @@ const bot = new TelegramBot(TOKEN);
       }).map(span => span.textContent.trim());
     });
 
-    // If available dates are found, ask the user to confirm the booking
     if (availableDates.length > 0) {
       console.log("Appointments found on days:", availableDates);
       await bot.sendMessage(chatId, `تم العثور على مواعيد متاحة في الأيام التالية: ${availableDates.join(', ')}`);
-      await bot.sendMessage(chatId, 'هل ترغب في حجز موعد؟ (نعم أو لا)');
-      
-      bot.on('message', async (msg) => {
-        if (msg.text.toLowerCase() === 'نعم') {
-          console.log('User confirmed. Booking the appointment...');
-
-          // Select the available date and time (you can modify the time selection logic as needed)
-          await page.click('td span:contains("2")'); // Example for selecting a date
-          await page.click('button:contains("9:00")'); // Example for selecting a time
-
-          console.log('Time selected. Pressing "Agendar"...');
-          await page.click('button:contains("Agendar")'); // Example for pressing "Agendar"
-
-          // Wait for the confirmation popup and click 'Confirmar'
-          console.log('Waiting for confirmation popup...');
-          await new Promise(res => setTimeout(res, 25000)); // Wait for 25 seconds
-
-          const confirmButton = await page.$('button:contains("Confirmar")');
-          if (confirmButton) {
-            console.log('Confirmation found. Pressing "Confirmar"...');
-            await confirmButton.click();
-            
-            await bot.sendMessage(chatId, 'تم تأكيد الحجز بنجاح.');
-            await page.screenshot({ path: 'booking_confirmation.png' });
-            await bot.sendPhoto(chatId, 'booking_confirmation.png'); // Send screenshot
-
-            // Stop further checks
-            process.exit();
-          }
-        } else if (msg.text.toLowerCase() === 'لا') {
-          console.log('User declined. Continuing search for available appointments...');
-          // The script will continue searching for appointments
-        }
-      });
+      await page.screenshot({ path: 'available.png' });
+      await bot.sendPhoto(chatId, fs.createReadStream('available.png'));
     } else {
       console.log("No available appointments in calendar.");
-      
-      // Wait 15 seconds before taking the screenshot
-      console.log('Waiting 15 seconds before taking screenshot...');
-      await new Promise(res => setTimeout(res, 15000));
-
-      // Take screenshot after no appointments
+      await bot.sendMessage(chatId, '❌ لا يوجد موعد متاح حالياً في التقويم.');
       await page.screenshot({ path: 'no_appointments.png' });
-      await bot.sendMessage(chatId, 'لا يوجد موعد متاح حالياً في التقويم.');
-      await bot.sendPhoto(chatId, 'no_appointments.png'); // Send screenshot
-
-      // Wait before trying again
+      await bot.sendPhoto(chatId, fs.createReadStream('no_appointments.png'));
     }
 
-    console.log("انتظار 15 دقيقة قبل المحاولة التالية...");
-    await new Promise(res => setTimeout(res, 900000)); // 15 دقيقة
+    console.log("🔁 انتظار 5 دقائق قبل المحاولة التالية...");
+    await new Promise(res => setTimeout(res, 300000)); // 5 دقائق
   }
 })();
