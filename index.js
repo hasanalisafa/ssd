@@ -153,12 +153,12 @@ process.on('uncaughtException', (err) => {
     if (availableDates.length > 0) {
       console.log("Appointments found on days:", availableDates);
       await bot.sendMessage(chatId, `تم العثور على مواعيد متاحة في الأيام التالية: ${availableDates.join(', ')}`);
-      await page.screenshot({ path: 'available.png' });
+      await page.screenshot({ path: 'available.png', fullpage: true });
       await bot.sendPhoto(chatId, fs.createReadStream('available.png'));
     } else {
       console.log("No available appointments in calendar.");
       await bot.sendMessage(chatId, '❌ لا يوجد موعد متاح حالياً في التقويم.');
-      await page.screenshot({ path: 'no_appointments.png' });
+      await page.screenshot({ path: 'no_appointments.png', fullpage: true });
       await bot.sendPhoto(chatId, fs.createReadStream('no_appointments.png'));
     }
 
