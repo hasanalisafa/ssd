@@ -30,7 +30,7 @@ const bot = new TelegramBot(TOKEN);
     try {
       await page.goto(URL, { waitUntil: 'networkidle2' });
       console.log("Waiting for site to fully load...");
-      await page.waitForTimeout(8000);
+      await new Promise(res => setTimeout(res, 8000));
 
       // اختيار خدمة Migração
       await page.waitForSelector('.ui-dropdown', { visible: true });
@@ -66,7 +66,7 @@ const bot = new TelegramBot(TOKEN);
 
       const waitTime = 15000 + Math.floor(Math.random() * 5000);
       console.log(`Waiting ${waitTime / 1000} seconds before clicking second Prosseguir...`);
-      await page.waitForTimeout(waitTime);
+      await new Promise(res => setTimeout(res, waitTime));
 
       console.log("Preparing to click second Prosseguir...");
       const secondButtons = await page.$$('button');
@@ -80,7 +80,7 @@ const bot = new TelegramBot(TOKEN);
       }
 
       console.log("Second Prosseguir clicked. Waiting 14 seconds before solving reCAPTCHA...");
-      await page.waitForTimeout(14000);
+      await new Promise(res => setTimeout(res, 14000));
 
       console.log("Waiting for second reCAPTCHA iframe...");
       await page.waitForSelector('iframe[src*="recaptcha"]', { visible: true, timeout: 15000 });
@@ -89,7 +89,7 @@ const bot = new TelegramBot(TOKEN);
       await page.solveRecaptchas();
 
       console.log("Second reCAPTCHA solved. Waiting 20 seconds...");
-      await page.waitForTimeout(20000);
+      await new Promise(res => setTimeout(res, 20000));
 
       // انتظار زر Confirmar
       try {
@@ -111,18 +111,18 @@ const bot = new TelegramBot(TOKEN);
 
       // الانتظار قبل التحقق من ظهور الـ popup
       console.log("Waiting 40 seconds before checking for popup...");
-      await page.waitForTimeout(40000);
+      await new Promise(res => setTimeout(res, 40000));
 
       const okBtn = await page.$('p-confirmdialog button');
       if (okBtn) {
         console.log("Popup appeared. Clicking OK...");
         await okBtn.click();
-        await page.waitForTimeout(10000);
+        await new Promise(res => setTimeout(res, 10000));
       } else {
         console.log("No popup appeared. Continuing...");
       }
 
-      // فحص المواعيد المتاحة بشكل دقيق
+      // فحص المواعيد المتاحة
       console.log("Checking calendar for available days...");
       const availableDates = await page.$$eval('td.ui-datepicker-selectable-day', tds =>
         tds.map(td => td.innerText.trim()).filter(text => text)
